@@ -89,10 +89,23 @@ public class ObjectWatcher {
 
 	// --- GETTERS / SETTERS ---
 
+	/**
+	 * Returns the current value of the "objectName" property. Can't be null.
+	 * It's the full ObjectName of the MBean (eg. "java.lang:type=Memory").
+	 * 
+	 * @return current value of the "objectName" property
+	 */
 	public String getObjectName() {
 		return objectName;
 	}
 
+	/**
+	 * Sets the new value of the "objectName" property. Can't be null. It's the
+	 * full ObjectName of the MBean (eg. "java.lang:type=Memory").
+	 * 
+	 * @param objectName
+	 *            new value of the "objectName" property
+	 */
 	public void setObjectName(String objectName) {
 		String name = Objects.requireNonNull(objectName).trim();
 		if (name.isEmpty()) {
@@ -101,26 +114,65 @@ public class ObjectWatcher {
 		this.objectName = name;
 	}
 
+	/**
+	 * Returns the current value of the "attributeName" property. It's an
+	 * optional attribute name of the MBean (eg. "HeapMemoryUsage").
+	 * 
+	 * @return current value of the "attributeName" property
+	 */
 	public String getAttributeName() {
 		return attributeName;
 	}
 
+	/**
+	 * Sets the new value of the "attributeName" property. It's an optional
+	 * attribute name of the MBean (eg. "HeapMemoryUsage").
+	 * 
+	 * @param attributeName
+	 *            new value of the "attributeName" property
+	 */
 	public void setAttributeName(String attributeName) {
 		this.attributeName = attributeName == null ? null : attributeName.trim();
 	}
 
+	/**
+	 * Returns the current value of the "path" property. It's an optional path
+	 * of the composite attribute (eg. "used").
+	 * 
+	 * @return current value of the "path" property
+	 */
 	public String getPath() {
 		return path;
 	}
 
+	/**
+	 * Sets the new value of the "path" property. It's an optional path of the
+	 * composite attribute (eg. "used").
+	 * 
+	 * @param path
+	 *            new value of the "path" property
+	 */
 	public void setPath(String path) {
 		this.path = path == null ? null : path.trim();
 	}
 
+	/**
+	 * Returns the current value of the "event" property. Can't be null. It's
+	 * the name of the Moleculer Event (eg. "memory.usage").
+	 * 
+	 * @return current value of the "event" property
+	 */
 	public String getEvent() {
 		return event;
 	}
 
+	/**
+	 * Sets the new value of the "event" property. Can't be null. It's the name
+	 * of the Moleculer Event (eg. "memory.usage").
+	 * 
+	 * @param eventName
+	 *            new value of the "event" property
+	 */
 	public void setEvent(String eventName) {
 		String name = Objects.requireNonNull(eventName).trim();
 		if (name.isEmpty()) {
@@ -129,18 +181,46 @@ public class ObjectWatcher {
 		this.event = name;
 	}
 
+	/**
+	 * Returns the current value of the "broadcast" property. Meaning of this
+	 * property: Broadcast (true = send event to ALL of the listeners), or emit
+	 * (false = send event to ONE of the listeners).
+	 * 
+	 * @return current value of the "broadcast" property
+	 */
 	public boolean isBroadcast() {
 		return broadcast;
 	}
 
+	/**
+	 * Sets the new value of the "broadcast" property. Meaning of this property:
+	 * Broadcast (true = send event to ALL of the listeners), or emit (false =
+	 * send event to ONE of the listeners).
+	 * 
+	 * @param broadcast
+	 *            new value of the "broadcast" property
+	 */
 	public void setBroadcast(boolean broadcast) {
 		this.broadcast = broadcast;
 	}
 
+	/**
+	 * Returns the current value of the "groups" property. It's an optional name
+	 * of the event group (eg. "jmxGroup" or "group1,group2,group3").
+	 * 
+	 * @return current value of the "groups" property
+	 */
 	public String getGroups() {
 		return groups;
 	}
 
+	/**
+	 * Sets the new value of the "groups" property. It's an optional name of the
+	 * event group (eg. "jmxGroup" or "group1,group2,group3").
+	 * 
+	 * @param groups
+	 *            new value of the "groups" property
+	 */
 	public void setGroups(String groups) {
 		this.groups = groups == null ? null : groups.trim();
 	}

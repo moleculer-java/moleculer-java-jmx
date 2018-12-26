@@ -29,6 +29,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -93,6 +94,9 @@ public class JmxService extends Service {
 
 	// --- LOGGER ---
 
+	/**
+	 * Logger of the service.
+	 */
 	protected static final Logger logger = LoggerFactory.getLogger(JmxService.class);
 
 	// --- VARIABLES ---
@@ -137,18 +141,40 @@ public class JmxService extends Service {
 
 	// --- VARIABLES OF THE MBEAN WATCHER THREAD ---
 
+	/**
+	 * Registered MBean "watchers".
+	 */
 	protected Set<ObjectWatcher> objectWatchers = new HashSet<>();
 
+	/**
+	 * Previous JSON strings of the watched MBeans (can be used for status
+	 * comparison what has changed).
+	 */
 	protected HashMap<ObjectWatcher, String> previousValues = new HashMap<>();
 
+	/**
+	 * Time between the comparations in MILLISECONDS.
+	 */
 	protected long watchPeriod = 3000;
 
+	/**
+	 * ServiceBroker's task scheduler.
+	 */
 	protected ScheduledExecutorService scheduler;
 
+	/**
+	 * ServiceBroker's task executor.
+	 */
 	protected ExecutorService executor;
 
+	/**
+	 * Cancelable timer of the MBean "watcher".
+	 */
 	protected ScheduledFuture<?> timer;
 
+	/**
+	 * Marker to determine whether the service is running.
+	 */
 	protected AtomicBoolean running = new AtomicBoolean();
 
 	// --- START SERVICE ---
@@ -219,7 +245,17 @@ public class JmxService extends Service {
 	// --- ACTIONS ---
 
 	/**
-	 * Lists all object (MBean) names in the JMX registry.
+	 * Lists all object (MBean) names in the JMX registry. Object names
+	 * appearing in the list can be used in getObject action. There is an
+	 * optional "query" parameter to refine the search. The "query" parameter
+	 * may contain a text fragment (eg "memory") or a standard JMX query (eg.
+	 * "*.*, "java.lang:*"). Example, how to call it from a REPL console:
+	 * 
+	 * <pre>
+	 * call jmx.listObjectNames --query memory
+	 * or
+	 * call jmx.listObjectNames --sort true
+	 * </pre>
 	 */
 	public Action listObjectNames = (ctx) -> {
 
@@ -265,11 +301,23 @@ public class JmxService extends Service {
 		for (ObjectName name : objectNames) {
 			keys.add(name.getCanonicalName());
 		}
+		
+		// Sort names
+		if (keys.size() > 1 && ctx.params.get("sort", false)) {
+			Collections.sort(keys, String.CASE_INSENSITIVE_ORDER);
+		}
+		
+		// Return response
 		return rsp;
 	};
 
 	/**
-	 * Retrieves one object (MBean) from the JMX registry.
+	 * Retrieves one object (MBean) from the JMX registry. Example, how to call
+	 * it from a REPL console:
+	 * 
+	 * <pre>
+	 * call jmx.getObject --objectName "java.lang:type=Runtime"
+	 * </pre>
 	 */
 	public Action getObject = (ctx) -> {
 
@@ -288,14 +336,23 @@ public class JmxService extends Service {
 	};
 
 	/**
-	 * Retrieves one object's attribute from the JMX registry.
+	 * Retrieves one object's attribute from the JMX registry. Example, how to
+	 * call it from a REPL console:
+	 * 
+	 * <pre>
+	 * call jmx.getAttribute --objectName "java.lang:type=Runtime" --attributeName HeapMemoryUsage
+	 * or
+	 * call jmx.getAttribute --objectName java.lang:type=Runtime
+	 *                       --attributeName HeapMemoryUsage
+	 *                       --path used
+	 * </pre>
 	 */
 	public Action getAttribute = (ctx) -> {
 
 		// Check connection and context
 		checkContext(ctx);
 
-		// MBean's canonical ObjectName
+		// MBean's canonical ObjectName (eg. "java.lang:type=Memory")
 		String objectName = ctx.params.get("objectName", (String) null);
 		if (objectName != null) {
 			objectName = objectName.trim();
@@ -304,7 +361,7 @@ public class JmxService extends Service {
 			throw new MoleculerServerError("The \"objectName\" property is required!", localNodeID, "NO_OBJECT_NAME");
 		}
 
-		// Attribute name of the object
+		// Attribute name of the object (eg. "HeapMemoryUsage")
 		String attributeName = ctx.params.get("attributeName", (String) null);
 		if (attributeName != null) {
 			attributeName = attributeName.trim();
@@ -317,9 +374,11 @@ public class JmxService extends Service {
 		// Retrieve attribute's value
 		Object value = connection.getAttribute(new ObjectName(objectName), attributeName);
 
-		// Pick one property from a CompositeData
+		// Pick one property from a CompositeData (eg. "used")
 		Tree rsp = new CheckedTree(convertValue(value));
 		if (value != null) {
+
+			// The "path" parameter is optional!
 			String path = ctx.params.get("path", (String) null);
 			if (path != null) {
 				rsp = rsp.get(path.trim());
@@ -333,7 +392,14 @@ public class JmxService extends Service {
 	/**
 	 * Find all MBeans by a query string (eg. "java.lang:*" or "memoryusage").
 	 * This service is not the fastest, but very useful when looking for the
-	 * appropriate ObjectName parameter in the JMX registry.
+	 * appropriate ObjectName parameter in the JMX registry. Example, how to
+	 * call it from a REPL console:
+	 * 
+	 * <pre>
+	 * call jmx.findObjects --query memory --max 5
+	 * or
+	 * call jmx.findObjects --query "java.lang:*"
+	 * </pre>
 	 */
 	public Action findObjects = (ctx) -> {
 
@@ -401,16 +467,42 @@ public class JmxService extends Service {
 
 	// --- EVENT HANDLING ---
 
+	/**
+	 * Defines a new ObjectWatcher instance. The service monitors the MBean
+	 * specified in the ObjectWatcher periodically and sends a notification (~=
+	 * a Moleculer Event) if its value changes. No new ObjectWatcher instance
+	 * can be added during run, only if the service is not started yet.
+	 * 
+	 * @param watcher
+	 *            new ObjectWatcher instance
+	 * 
+	 * @return <code>true</code> if the set of watchers did not already contain
+	 *         the specified ObjectWatcher
+	 */
 	public boolean addObjectWatcher(ObjectWatcher watcher) {
 		checkRunningState();
 		return objectWatchers.add(watcher);
 	}
 
+	/**
+	 * Removes the specified ObjectWatcher from the set of watchers. Can only be
+	 * called for a stopped JMX Service.
+	 * 
+	 * @param watcher
+	 *            the ObjectWatcher to be removed from the set of watchers, if
+	 *            present
+	 * 
+	 * @return <code>true</code> if this set contained the specified
+	 *         ObjectWatcher
+	 */
 	public boolean removeObjectWatcher(ObjectWatcher watcher) {
 		checkRunningState();
 		return objectWatchers.remove(watcher);
 	}
 
+	/**
+	 * Checks the running state.
+	 */
 	protected void checkRunningState() {
 		if (running.get()) {
 			throw new IllegalStateException(
@@ -418,6 +510,10 @@ public class JmxService extends Service {
 		}
 	}
 
+	/**
+	 * Compares the status of observed MBeans to their previous status. Will
+	 * notify the listeners when a value has changed.
+	 */
 	protected void watchObjects() {
 		executor.execute(() -> {
 			Iterator<ObjectWatcher> watchers = objectWatchers.iterator();
@@ -486,15 +582,13 @@ public class JmxService extends Service {
 					// Notify listeners
 					if (watcher.broadcast) {
 
-						// Broadcast event (send to all listeners)
+						// Broadcast event (send to ALL listeners)
 						broker.broadcast(watcher.event, payload, groups);
-						System.out.println("broadcast " + watcher.event + "\r\n" + payload);
 
 					} else {
 
-						// Emit event (send to one of the listeners)
-						broker.broadcast(watcher.event, payload, groups);
-						System.out.println("emit " + watcher.event + "\r\n" + payload);
+						// Emit event (send to ONE of the listeners)
+						broker.emit(watcher.event, payload, groups);
 
 					}
 				} catch (Exception cause) {
@@ -514,6 +608,12 @@ public class JmxService extends Service {
 
 	// --- INTERNAL UTILITIES ---
 
+	/**
+	 * Verifies the input context.
+	 * 
+	 * @param ctx
+	 *            input context
+	 */
 	protected void checkContext(Context ctx) {
 		if (connection == null) {
 			throw new MoleculerServerError("JMX is not available!", localNodeID, "NO_JMX");
@@ -523,6 +623,17 @@ public class JmxService extends Service {
 		}
 	}
 
+	/**
+	 * Converts an input (JMX) object into Map.
+	 * 
+	 * @param objectName
+	 *            input object
+	 * 
+	 * @return output Map
+	 * 
+	 * @throws Exception
+	 *             any conversion exception
+	 */
 	protected Map<String, Object> objectToJson(ObjectName objectName) throws Exception {
 		MBeanAttributeInfo[] attrs = connection.getMBeanInfo(objectName).getAttributes();
 		LinkedHashMap<String, Object> map = new LinkedHashMap<>((attrs.length + 1) * 2);
@@ -541,6 +652,15 @@ public class JmxService extends Service {
 		return map;
 	}
 
+	/**
+	 * Recursively converts an input (JMX) object into Map, List, Set, or a
+	 * scalar value.
+	 * 
+	 * @param value
+	 *            input object
+	 * 
+	 * @return output Map, List, Set, or a scalar value
+	 */
 	protected Object convertValue(Object value) {
 		try {
 			if (value == null) {
@@ -600,59 +720,153 @@ public class JmxService extends Service {
 
 	// --- GETTERS AND SETTERS ---
 
+	/**
+	 * Returns the value of the "environment" property. This property is an
+	 * optional Environment Map used for connecting the remote JMX server.
+	 * 
+	 * @return the current value of the property
+	 */
 	public Map<String, ?> getEnvironment() {
 		return environment;
 	}
 
+	/**
+	 * Sets the new Environment Map. This property is an optional Environment
+	 * Map used for connecting the remote JMX server.
+	 * 
+	 * @param environment
+	 *            new Environment Map (can be null)
+	 */
 	public void setEnvironment(Map<String, Object> environment) {
 		this.environment = environment;
 	}
 
+	/**
+	 * Returns the value of the "local" property. Meaning of this property: Use
+	 * local/internal (true) or a remote/rmi (false) JMX connection.
+	 * 
+	 * @return the current value of the property
+	 */
 	public boolean isLocal() {
 		return local;
 	}
 
+	/**
+	 * Sets the new value of the "local" property. Meaning of this property: Use
+	 * local/internal (true) or a remote/rmi (false) JMX connection.
+	 * 
+	 * @param local
+	 *            use local/internal (true) or a remote/rmi (false) connection
+	 */
 	public void setLocal(boolean local) {
 		this.local = local;
 	}
 
+	/**
+	 * Returns the value of the JMX "url" property. This property is the remote
+	 * JMX server's URL (eg.
+	 * "service:jmx:rmi:///jndi/rmi://127.0.0.1:7199/jmxrmi").
+	 * 
+	 * @return the current value of the property
+	 */
 	public String getUrl() {
 		return url;
 	}
 
+	/**
+	 * Sets the new value of the "url" property. This property is the remote JMX
+	 * server's URL (eg. "service:jmx:rmi:///jndi/rmi://127.0.0.1:7199/jmxrmi").
+	 * 
+	 * @param url
+	 *            RMI URL
+	 */
 	public void setUrl(String url) {
 		this.url = Objects.requireNonNull(url);
 	}
 
+	/**
+	 * Returns the value of the "username" property. The "username" used for the
+	 * optional user authentication (null = no authentication).
+	 * 
+	 * @return the current value of the username
+	 */
 	public String getUsername() {
 		return username;
 	}
 
+	/**
+	 * Sets the new value of the "username" property. The "username" used for
+	 * the optional user authentication (null = no authentication).
+	 * 
+	 * @param username
+	 *            username for authentication (can be null)
+	 */
 	public void setUsername(String username) {
 		this.username = username;
 	}
 
+	/**
+	 * Returns the value of the "password" property. The "password" used for the
+	 * optional user authentication (null = no authentication).
+	 * 
+	 * @return the current value of the password
+	 */
 	public String getPassword() {
 		return password;
 	}
 
+	/**
+	 * Sets the new value of the "password" property. The "password" used for
+	 * the optional user authentication (null = no authentication).
+	 * 
+	 * @param password
+	 *            password for authentication (can be null)
+	 */
 	public void setPassword(String password) {
 		this.password = password;
 	}
 
+	/**
+	 * Returns the entire "objectWatchers" Map. This map contains the registered
+	 * MBean "watchers".
+	 * 
+	 * @return the current value of the property
+	 */
 	public Set<ObjectWatcher> getObjectWatchers() {
 		return objectWatchers;
 	}
 
+	/**
+	 * Sets the new value of the "objectWatchers" Map. This map contains the
+	 * registered MBean "watchers".
+	 * 
+	 * @param objectWatchers
+	 *            set of watchers
+	 */
 	public void setObjectWatchers(Set<ObjectWatcher> objectWatchers) {
 		checkRunningState();
 		this.objectWatchers = Objects.requireNonNull(objectWatchers);
 	}
 
+	/**
+	 * Returns the value of the "watchPeriod" time in MILLISECONDS (it's the
+	 * delay between the MBean comparations).
+	 * 
+	 * @return the current value of the property in MILLISECONDS
+	 */
 	public long getWatchPeriod() {
 		return watchPeriod;
 	}
 
+	/**
+	 * Sets the new value of the "watchPeriod" property (it's the delay between
+	 * the MBean comparations). Its possible minimum value is 200, the ideal
+	 * value is about 5000-10000. Too low delay can generate high network
+	 * traffic.
+	 * 
+	 * @param watchPeriod
+	 *            the new delay in MILLISECONDS
+	 */
 	public void setWatchPeriod(long watchPeriod) {
 		if (watchPeriod < 200) {
 

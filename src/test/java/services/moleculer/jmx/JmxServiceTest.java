@@ -58,7 +58,18 @@ public class JmxServiceTest extends TestCase {
 		for (Tree test : array) {
 			assertTrue(test.asString().toLowerCase().contains(".lang:"));
 		}
-
+		rsp = br.call(LST, "query", ".lang:", "sort", true).waitFor();
+		Tree sortedArray = rsp.get("objectNames");
+		assertTrue(sortedArray.size() > 0);
+		for (Tree test : sortedArray) {
+			assertTrue(test.asString().toLowerCase().contains(".lang:"));
+		}
+		String txt1 = sortedArray.toString();
+		sortedArray.sort();
+		String txt2 = sortedArray.toString();
+		assertEquals(txt1, txt2);
+		assertNotSame(txt1, array.toString());
+		
 		rsp = br.call(LST, "query", "Code").waitFor();
 		array = rsp.get("objectNames");
 		assertTrue(array.size() > 0);
@@ -126,47 +137,16 @@ public class JmxServiceTest extends TestCase {
 		
 		rsp = br.call(FND, "query", ".lang:name=").waitFor();
 		array = rsp.get("objects");
+		for (Tree test : array) {
+			assertTrue(test.toString(false).toLowerCase().contains(".lang:name="));
+		}
+		
+		rsp = br.call(FND, "query", "java.nio:*").waitFor();
+		array = rsp.get("objects");
+		for (Tree test : array) {
+			assertTrue(test.get("ObjectName", "").contains("java.nio:"));
+		}
 
-		// TODO Remove this part:
-		
-		JmxService jmx = (JmxService) br.getLocalService("jmx");
-		
-		ObjectWatcher watcher = new ObjectWatcher();
-		watcher.setObjectName("java.lang:type=Memory");
-		watcher.setAttributeName("HeapMemoryUsage");
-		watcher.setPath("used");
-		watcher.setEvent("jmx.test");
-		
-		jmx.stopped();
-		jmx.addObjectWatcher(watcher);
-		jmx.started(br);
-		
-		Thread.sleep(30000);
-		
-		/*
-		 * "java.lang:name=Metaspace,type=MemoryPool",
-		 * "java.lang:name=PS Old Gen,type=MemoryPool",
-		 * "java.lang:name=PS Scavenge,type=GarbageCollector",
-		 * "java.lang:name=PS Eden Space,type=MemoryPool",
-		 * "JMImplementation:type=MBeanServerDelegate",
-		 * "java.lang:type=Runtime",
-		 * "java.lang:type=Threading",
-		 * "java.lang:type=OperatingSystem",
-		 * "java.lang:name=Code Cache,type=MemoryPool",
-		 * "java.nio:name=direct,type=BufferPool",
-		 * "java.lang:type=Compilation",
-		 * "java.lang:name=CodeCacheManager,type=MemoryManager",
-		 * "java.lang:name=Compressed Class Space,type=MemoryPool",
-		 * "java.lang:type=Memory",
-		 * "java.nio:name=mapped,type=BufferPool",
-		 * "java.util.logging:type=Logging",
-		 * "java.lang:name=PS Survivor Space,type=MemoryPool",
-		 * "java.lang:type=ClassLoading",
-		 * "java.lang:name=Metaspace Manager,type=MemoryManager",
-		 * "com.sun.management:type=DiagnosticCommand",
-		 * "java.lang:name=PS MarkSweep,type=GarbageCollector",
-		 * "com.sun.management:type=HotSpotDiagnostic"
-		 */
 	}
 
 	// --- SET UP ---
