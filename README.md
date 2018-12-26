@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/moleculer-java/moleculer-java-jmx.svg?branch=master)](https://travis-ci.org/moleculer-java/moleculer-java-jmx)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/627f31ac7df448b9a277c7dc4d5c3bc1)](https://www.codacy.com/app/berkesa/moleculer-java-jmx?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=moleculer-java/moleculer-java-jmx&amp;utm_campaign=Badge_Grade)
+[![codecov](https://codecov.io/gh/moleculer-java/moleculer-java-jmx/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java-jmx)
 
 # [WIP]
 
