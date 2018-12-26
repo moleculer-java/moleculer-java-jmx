@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/moleculer-java/moleculer-java-jmx.svg?branch=master)](https://travis-ci.org/moleculer-java/moleculer-java-jmx)
+
 # [WIP]
 
 JMX service for [Moleculer](https://github.com/berkesa/moleculer-java).
