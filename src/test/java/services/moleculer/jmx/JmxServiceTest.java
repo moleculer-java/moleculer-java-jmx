@@ -2,7 +2,9 @@ package services.moleculer.jmx;
 
 import java.lang.management.ManagementFactory;
 import java.rmi.registry.LocateRegistry;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Set;
 
 import javax.management.InstanceNotFoundException;
@@ -71,6 +73,12 @@ public class JmxServiceTest extends TestCase {
 	}
 	
 	private void installWatcher(JmxService jmx) {
+		Map<String, Object> environment = new HashMap<>();
+		jmx.setEnvironment(environment);
+		assertEquals(environment, jmx.getEnvironment());
+		jmx.setEnvironment(null);
+		assertNull(jmx.getEnvironment());
+		
 		jmx.setUsername("a");
 		assertEquals("a", jmx.getUsername());
 		jmx.setUsername(null);
@@ -87,6 +95,36 @@ public class JmxServiceTest extends TestCase {
 		assertEquals(300, jmx.getWatchPeriod());
 		
 		ObjectWatcher watcher = new ObjectWatcher();
+		
+		try {
+
+			// Empty "objectName"
+			watcher.setObjectName("");
+			fail();
+
+		} catch (IllegalArgumentException e) {
+
+			// Ok!
+		}
+		try {
+
+			// Empty "event"
+			watcher.setEvent("");
+			fail();
+
+		} catch (IllegalArgumentException e) {
+
+			// Ok!
+		}
+		
+		// Nulls
+		watcher.setGroups(null);
+		assertNull(watcher.getGroups());
+		watcher.setPath(null);
+		assertNull(watcher.getPath());
+		watcher.setAttributeName(null);
+		assertNull(watcher.getAttributeName());
+		
 		watcher.setObjectName("java.lang:type=Memory");
 		assertEquals("java.lang:type=Memory", watcher.getObjectName());
 		watcher.setAttributeName("HeapMemoryUsage");
@@ -125,6 +163,7 @@ public class JmxServiceTest extends TestCase {
 		assertNotNull(array);
 		assertTrue(array.size() > 0);
 		assertEquals(array.size(), br.call(LST, "query", "*.*").waitFor().get("objectNames").size());
+		assertEquals(array.size(), br.call(LST, "query", "").waitFor().get("objectNames").size());
 		
 		rsp = br.call(LST, "query", "java.lang:*").waitFor();
 		array = rsp.get("objectNames");
@@ -183,7 +222,18 @@ public class JmxServiceTest extends TestCase {
 
 			// Ok!
 		}
-		
+
+		try {
+
+			// Empty "objectName"
+			rsp = br.call(OBJ, "objectName", "").waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+
 		try {
 
 			// Invalid syntax
@@ -230,8 +280,30 @@ public class JmxServiceTest extends TestCase {
 
 		try {
 
+			// Empty "objectName"
+			rsp = br.call(ATR, "objectName", "").waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+		
+		try {
+
 			// Missing "attributeName"
 			rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool").waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+		
+		try {
+
+			// Empty "attributeName"
+			rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool", "attributeName", "").waitFor();
 			fail();
 
 		} catch (MoleculerError e) {
@@ -255,6 +327,17 @@ public class JmxServiceTest extends TestCase {
 
 			// Missing "query"
 			rsp = br.call(FND).waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+		
+		try {
+
+			// Empty "query"
+			rsp = br.call(FND, "query", "").waitFor();
 			fail();
 
 		} catch (MoleculerError e) {
@@ -299,8 +382,17 @@ public class JmxServiceTest extends TestCase {
 			assertTrue(v > 0);
 		}
 		
-		rsp = br.call(FND, "query", "memory").waitFor();
-		System.out.println(rsp);
+		try {
+
+			// Unable to modify
+			JmxService jmx = (JmxService) br.getLocalService("jmx");
+			jmx.addObjectWatcher(new ObjectWatcher());
+			fail();
+
+		} catch (IllegalStateException e) {
+
+			// Ok!
+		}
 	}
 
 	// --- SET UP ---
