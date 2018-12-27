@@ -25,6 +25,7 @@
  */
 package services.moleculer.jmx;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -177,71 +178,6 @@ public class JmxService extends Service {
 	 */
 	protected AtomicBoolean running = new AtomicBoolean();
 
-	// --- START SERVICE ---
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see
-	 * services.moleculer.service.MoleculerComponent#started(services.moleculer.
-	 * ServiceBroker)
-	 */
-	@Override
-	public void started(ServiceBroker broker) throws Exception {
-		super.started(broker);
-		running.set(false);
-
-		// Set nodeID
-		this.localNodeID = broker.getNodeID();
-
-		// Connect to JMX server
-		if (local) {
-
-			// Local JMX connection
-			connection = ManagementFactory.getPlatformMBeanServer();
-
-		} else {
-
-			// Remote JMX connection
-			JMXServiceURL target = new JMXServiceURL(url);
-			if (username != null) {
-				username = username.trim();
-			}
-			if (password != null) {
-				password = password.trim();
-			}
-			if (username != null && password != null && !username.isEmpty() && !password.isEmpty()) {
-				if (environment == null) {
-					environment = new HashMap<>();
-				}
-				String[] credentials = new String[2];
-				credentials[0] = username;
-				credentials[1] = password;
-				environment.put(JMXConnector.CREDENTIALS, credentials);
-			}
-			JMXConnector connector = JMXConnectorFactory.connect(target, environment);
-			connection = connector.getMBeanServerConnection();
-		}
-
-		// Object watcher
-		running.set(true);
-		if (objectWatchers != null && !objectWatchers.isEmpty()) {
-			ServiceBrokerConfig config = broker.getConfig();
-			scheduler = config.getScheduler();
-			executor = config.getExecutor();
-			timer = scheduler.schedule(this::watchObjects, watchPeriod, TimeUnit.MILLISECONDS);
-		}
-	}
-
-	@Override
-	public void stopped() {
-		running.set(false);
-		if (timer != null) {
-			timer.cancel(false);
-			timer = null;
-		}
-	}
-
 	// --- ACTIONS ---
 
 	/**
@@ -272,27 +208,8 @@ public class JmxService extends Service {
 			}
 		}
 
-		// Collect ObjectNames
-		Set<ObjectName> objectNames = null;
-		try {
-
-			// JMX-based query syntax
-			ObjectName objectName = query == null ? null : new ObjectName(query);
-			objectNames = connection.queryNames(objectName, null);
-		} catch (Exception syntaxError) {
-		}
-		if ((objectNames == null || objectNames.isEmpty()) && query != null) {
-
-			// Simple "contains" filter
-			objectNames = connection.queryNames(null, null);
-			Iterator<ObjectName> i = objectNames.iterator();
-			String test = query.toLowerCase().replace("*", "");
-			while (i.hasNext()) {
-				if (!i.next().getCanonicalName().toLowerCase().contains(test)) {
-					i.remove();
-				}
-			}
-		}
+		// Collect ObjectNames by the query string
+		Set<ObjectName> objectNames = collectNames(query);
 
 		// Convert response to Tree (~= JSON)
 		FastBuildTree rsp = new FastBuildTree(1);
@@ -301,12 +218,12 @@ public class JmxService extends Service {
 		for (ObjectName name : objectNames) {
 			keys.add(name.getCanonicalName());
 		}
-		
+
 		// Sort names
 		if (keys.size() > 1 && ctx.params.get("sort", false)) {
 			Collections.sort(keys, String.CASE_INSENSITIVE_ORDER);
 		}
-		
+
 		// Return response
 		return rsp;
 	};
@@ -392,11 +309,12 @@ public class JmxService extends Service {
 	/**
 	 * Find all MBeans by a query string (eg. "java.lang:*" or "memoryusage").
 	 * This service is not the fastest, but very useful when looking for the
-	 * appropriate ObjectName parameter in the JMX registry. Example, how to
-	 * call it from a REPL console:
+	 * appropriate ObjectName parameter in the JMX registry. In production mode
+	 * use the "getObject" and "getAttribute" actions instead of this action.
+	 * Example, how to call it from a REPL console:
 	 * 
 	 * <pre>
-	 * call jmx.findObjects --query memory --max 5
+	 * call jmx.findObjects --query memory --max 15
 	 * or
 	 * call jmx.findObjects --query "java.lang:*"
 	 * </pre>
@@ -418,26 +336,12 @@ public class JmxService extends Service {
 		// Max number of objects
 		int max = ctx.params.get("max", 64);
 
-		// Collect ObjectNames
-		Set<ObjectName> objectNames = null;
-		try {
-
-			// JMX-based query syntax
-			ObjectName objectName = query == null ? null : new ObjectName(query);
-			objectNames = connection.queryNames(objectName, null);
-		} catch (Exception syntaxError) {
-		}
-		if ((objectNames == null || objectNames.isEmpty()) && query != null) {
-
-			// Simple "contains" filter
+		// Collect ObjectNames by the query string
+		Set<ObjectName> objectNames;
+		if (query.indexOf('*') == -1) {
 			objectNames = connection.queryNames(null, null);
-			Iterator<ObjectName> i = objectNames.iterator();
-			String test = query.toLowerCase().replace("*", "");
-			while (i.hasNext()) {
-				if (!i.next().getCanonicalName().toLowerCase().contains(test)) {
-					i.remove();
-				}
-			}
+		} else {
+			objectNames = collectNames(query);
 		}
 
 		// Convert response to Tree (~= JSON)
@@ -450,9 +354,16 @@ public class JmxService extends Service {
 				if (map == null) {
 					continue;
 				}
-				Tree objectTree = new Tree(map);
-				String txt = objectTree.toString(null, false);
-				if (txt.toLowerCase().contains(query)) {
+				if (query.indexOf('*') == -1) {
+					Tree objectTree = new Tree(map);
+					String txt = objectTree.toString(null, false);
+					if (txt.toLowerCase().contains(query)) {
+						list.addLast(map);
+						if (list.size() >= max) {
+							break;
+						}
+					}
+				} else {
 					list.addLast(map);
 					if (list.size() >= max) {
 						break;
@@ -519,85 +430,8 @@ public class JmxService extends Service {
 			Iterator<ObjectWatcher> watchers = objectWatchers.iterator();
 			while (watchers.hasNext()) {
 				ObjectWatcher watcher = watchers.next();
-				try {
-
-					// Check required parameters
-					if (watcher.objectName == null) {
-						throw new IllegalArgumentException("The value of the \"ObjectName\" parameter cannot be null!");
-					}
-					if (watcher.event == null) {
-						throw new IllegalArgumentException("The value of the \"event\" parameter cannot be null!");
-					}
-
-					// Create ObjectName
-					Object value;
-					ObjectName objectName;
-					try {
-						objectName = new ObjectName(watcher.objectName);
-					} catch (MalformedObjectNameException malformedName) {
-						logger.error("Invalid object name (" + watcher.objectName + ")!", malformedName);
-						watchers.remove();
-						continue;
-					}
-
-					// Get object/attribute from the JMX registry
-					if (watcher.attributeName == null || watcher.attributeName.isEmpty()) {
-
-						// Retrieve the entire MBean
-						value = objectToJson(objectName);
-
-					} else {
-
-						// Retrieve attribute's value
-						value = connection.getAttribute(objectName, watcher.attributeName);
-
-					}
-
-					// Pick one property from a CompositeData
-					Tree payload = new CheckedTree(convertValue(value));
-					if (value != null && watcher.path != null && !watcher.path.isEmpty()) {
-						payload = payload.get(watcher.path);
-					}
-
-					// Convert values to unformatted JSON
-					String currentText = payload.toString(false);
-					String previousText = previousValues.get(watcher);
-
-					// Changed?
-					if (previousText != null && previousText.equals(currentText)) {
-						continue;
-					}
-
-					// Store the current serialized JSON
-					previousValues.put(watcher, currentText);
-
-					// Get event group(s)
-					Groups groups;
-					if (watcher.groups == null || watcher.groups.isEmpty()) {
-						groups = null;
-					} else {
-						groups = Groups.of(watcher.groups);
-					}
-
-					// Notify listeners
-					if (watcher.broadcast) {
-
-						// Broadcast event (send to ALL listeners)
-						broker.broadcast(watcher.event, payload, groups);
-
-					} else {
-
-						// Emit event (send to ONE of the listeners)
-						broker.emit(watcher.event, payload, groups);
-
-					}
-				} catch (Exception cause) {
-					logger.error("Unable to get object from JMX registry!", cause);
-					try {
-						Thread.sleep(5000);
-					} catch (InterruptedException interrupt) {
-						return;
-					}
+				if (checkObject(watcher)) {
+					watchers.remove();
 				}
 			}
 			if (running.get() && !objectWatchers.isEmpty()) {
@@ -606,7 +440,198 @@ public class JmxService extends Service {
 		});
 	}
 
+	/**
+	 * Compares the status of observed MBeans to their previous status.
+	 * 
+	 * @param watcher
+	 *            watcher object
+	 * 
+	 * @return true = remove faulty watcher config from the "watchers" map
+	 */
+	protected boolean checkObject(ObjectWatcher watcher) {
+		try {
+
+			// Check required parameters
+			if (watcher.objectName == null) {
+				logger.error("The value of the \"ObjectName\" parameter cannot be null!");
+				return true;
+			}
+			if (watcher.event == null) {
+				logger.error("The value of the \"event\" parameter cannot be null!");
+				return true;
+			}
+
+			// Create ObjectName
+			Object value;
+			ObjectName objectName;
+			try {
+				objectName = new ObjectName(watcher.objectName);
+			} catch (MalformedObjectNameException malformedName) {
+				logger.error("Invalid object name (" + watcher.objectName + ")!", malformedName);
+				return true;
+			}
+
+			// Get object/attribute from the JMX registry
+			if (watcher.attributeName == null || watcher.attributeName.isEmpty()) {
+
+				// Retrieve the entire MBean
+				value = objectToJson(objectName);
+
+			} else {
+
+				// Retrieve attribute's value
+				value = connection.getAttribute(objectName, watcher.attributeName);
+
+			}
+
+			// Pick one property from a CompositeData
+			Tree payload = new CheckedTree(convertValue(value));
+			if (value != null && watcher.path != null && !watcher.path.isEmpty()) {
+				payload = payload.get(watcher.path);
+			}
+
+			// Convert values to unformatted JSON
+			String currentText = payload.toString(false);
+			String previousText = previousValues.get(watcher);
+
+			// Changed?
+			if (previousText != null && previousText.equals(currentText)) {
+				return false;
+			}
+
+			// Store the current serialized JSON
+			previousValues.put(watcher, currentText);
+
+			// Get event group(s)
+			Groups groups;
+			if (watcher.groups == null || watcher.groups.isEmpty()) {
+				groups = null;
+			} else {
+				groups = Groups.of(watcher.groups);
+			}
+
+			// Notify listeners
+			if (watcher.broadcast) {
+
+				// Broadcast event (send to ALL listeners)
+				broker.broadcast(watcher.event, payload, groups);
+
+			} else {
+
+				// Emit event (send to ONE of the listeners)
+				broker.emit(watcher.event, payload, groups);
+
+			}
+		} catch (Exception cause) {
+			logger.error("Unable to get object from JMX registry!", cause);
+		}
+		return false;
+	}
+
+	// --- START SERVICE ---
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * services.moleculer.service.MoleculerComponent#started(services.moleculer.
+	 * ServiceBroker)
+	 */
+	@Override
+	public void started(ServiceBroker broker) throws Exception {
+		super.started(broker);
+		running.set(false);
+
+		// Set nodeID
+		this.localNodeID = broker.getNodeID();
+
+		// Connect to JMX server
+		if (local) {
+
+			// Local JMX connection
+			connection = ManagementFactory.getPlatformMBeanServer();
+
+		} else {
+
+			// Remote JMX connection
+			JMXServiceURL target = new JMXServiceURL(url);
+			if (username != null) {
+				username = username.trim();
+			}
+			if (password != null) {
+				password = password.trim();
+			}
+			if (username != null && password != null && !username.isEmpty() && !password.isEmpty()) {
+				if (environment == null) {
+					environment = new HashMap<>();
+				}
+				String[] credentials = new String[2];
+				credentials[0] = username;
+				credentials[1] = password;
+				environment.put(JMXConnector.CREDENTIALS, credentials);
+			}
+			JMXConnector connector = JMXConnectorFactory.connect(target, environment);
+			connection = connector.getMBeanServerConnection();
+		}
+
+		// Object watcher
+		running.set(true);
+		if (objectWatchers != null && !objectWatchers.isEmpty()) {
+			ServiceBrokerConfig config = broker.getConfig();
+			scheduler = config.getScheduler();
+			executor = config.getExecutor();
+			timer = scheduler.schedule(this::watchObjects, watchPeriod, TimeUnit.MILLISECONDS);
+		}
+	}
+
+	// --- STOP SERVICE ---
+
+	@Override
+	public void stopped() {
+		running.set(false);
+		if (timer != null) {
+			timer.cancel(false);
+			timer = null;
+		}
+	}
+
 	// --- INTERNAL UTILITIES ---
+
+	/**
+	 * Collects all MBean ObjectNames by a "query" String (eg. "java.lang:*" or
+	 * "memoryusage").
+	 * 
+	 * @param query
+	 *            query string
+	 * 
+	 * @return set of ObjectNames
+	 * 
+	 * @throws IOException
+	 *             any communication error
+	 */
+	protected Set<ObjectName> collectNames(String query) throws IOException {
+		Set<ObjectName> objectNames = null;
+		try {
+
+			// JMX-based query syntax
+			ObjectName objectName = query == null ? null : new ObjectName(query);
+			objectNames = connection.queryNames(objectName, null);
+		} catch (Exception syntaxError) {
+		}
+		if ((objectNames == null || objectNames.isEmpty()) && query != null) {
+
+			// Simple "contains" filter
+			objectNames = connection.queryNames(null, null);
+			Iterator<ObjectName> i = objectNames.iterator();
+			String test = query.toLowerCase().replace("*", "");
+			while (i.hasNext()) {
+				if (!i.next().getCanonicalName().toLowerCase().contains(test)) {
+					i.remove();
+				}
+			}
+		}
+		return objectNames;
+	}
 
 	/**
 	 * Verifies the input context.

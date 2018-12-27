@@ -1,13 +1,23 @@
 package services.moleculer.jmx;
 
+import java.lang.management.ManagementFactory;
+import java.rmi.registry.LocateRegistry;
+import java.util.LinkedList;
+import java.util.Set;
+
 import javax.management.InstanceNotFoundException;
+import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
+import javax.management.remote.JMXConnectorServer;
+import javax.management.remote.JMXConnectorServerFactory;
+import javax.management.remote.JMXServiceURL;
 
 import org.junit.Test;
 
 import io.datatree.Tree;
 import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
+import services.moleculer.error.MoleculerError;
 import services.moleculer.monitor.ConstantMonitor;
 
 public class JmxServiceTest extends TestCase {
@@ -19,14 +29,92 @@ public class JmxServiceTest extends TestCase {
 	private static final String ATR = "jmx.getAttribute";
 	private static final String FND = "jmx.findObjects";
 
+	private static final String URL = "service:jmx:rmi://localhost/jndi/rmi://localhost:1234/jmxrmi";
+	
 	// --- SERVICE BROKER ---
 
 	private ServiceBroker br;
 
+	// --- JMX SERVER ---
+	
+	private JMXConnectorServer svr;
+	
 	// --- TEST METHODS ---
 
 	@Test
 	public void testLocal() throws Exception {
+		JmxService jmx = new JmxService();
+		installWatcher(jmx);
+		assertTrue(jmx.isLocal());
+		br.createService(jmx);
+		br.start();
+		doTests();
+	}
+	
+	@Test
+	public void testRemote() throws Exception {
+	    LocateRegistry.createRegistry(1234);
+	    MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+	    JMXServiceURL url = new JMXServiceURL(URL);
+	    svr = JMXConnectorServerFactory.newJMXConnectorServer(url, null, mbs);
+	    svr.start();
+
+		JmxService jmx = new JmxService();
+		installWatcher(jmx);
+		jmx.setLocal(false);
+		assertFalse(jmx.isLocal());
+		jmx.setUrl(URL);
+		assertEquals(URL, jmx.getUrl());
+		br.createService(jmx);
+		br.start();
+		doTests();
+	}
+	
+	private void installWatcher(JmxService jmx) {
+		jmx.setUsername("a");
+		assertEquals("a", jmx.getUsername());
+		jmx.setUsername(null);
+		assertNull(jmx.getUsername());
+
+		jmx.setPassword("b");
+		assertEquals("b", jmx.getPassword());
+		jmx.setPassword(null);
+		assertNull(jmx.getPassword());
+
+		jmx.setWatchPeriod(100);
+		assertEquals(200, jmx.getWatchPeriod());
+		jmx.setWatchPeriod(300);
+		assertEquals(300, jmx.getWatchPeriod());
+		
+		ObjectWatcher watcher = new ObjectWatcher();
+		watcher.setObjectName("java.lang:type=Memory");
+		assertEquals("java.lang:type=Memory", watcher.getObjectName());
+		watcher.setAttributeName("HeapMemoryUsage");
+		assertEquals("HeapMemoryUsage", watcher.getAttributeName());
+		watcher.setPath("used");
+		assertEquals("used", watcher.getPath());
+		watcher.setEvent("jmx.memory");
+		assertEquals("jmx.memory", watcher.getEvent());
+		watcher.setGroups("jmx");
+		assertEquals("jmx", watcher.getGroups());
+		watcher.setBroadcast(false);
+		assertFalse(watcher.isBroadcast());
+		watcher.setBroadcast(true);
+		assertTrue(watcher.isBroadcast());
+		
+		assertTrue(jmx.addObjectWatcher(watcher));
+		assertFalse(jmx.addObjectWatcher(watcher));
+		assertTrue(jmx.removeObjectWatcher(watcher));
+		assertFalse(jmx.removeObjectWatcher(watcher));
+		assertTrue(jmx.addObjectWatcher(watcher));
+		
+		Set<ObjectWatcher> watchers = jmx.getObjectWatchers();
+		assertEquals(1, watchers.size());
+		jmx.setObjectWatchers(watchers);
+		assertEquals(1, jmx.getObjectWatchers().size());
+	}
+		
+	public void doTests() throws Exception {
 
 		// --- LIST OBJECT NAMES ---
 
@@ -36,7 +124,8 @@ public class JmxServiceTest extends TestCase {
 		assertTrue(array.isEnumeration());
 		assertNotNull(array);
 		assertTrue(array.size() > 0);
-
+		assertEquals(array.size(), br.call(LST, "query", "*.*").waitFor().get("objectNames").size());
+		
 		rsp = br.call(LST, "query", "java.lang:*").waitFor();
 		array = rsp.get("objectNames");
 		assertTrue(array.size() > 0);
@@ -86,6 +175,17 @@ public class JmxServiceTest extends TestCase {
 
 		try {
 
+			// Missing "objectName"
+			rsp = br.call(OBJ).waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+		
+		try {
+
 			// Invalid syntax
 			rsp = br.call(OBJ, "objectName", "AAABBBCCC").waitFor();
 			fail();
@@ -117,6 +217,28 @@ public class JmxServiceTest extends TestCase {
 		
 		// --- GET ATTRIBUTE ---
 		
+		try {
+
+			// Missing "objectName"
+			rsp = br.call(ATR).waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+
+		try {
+
+			// Missing "attributeName"
+			rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool").waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
+
 		rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool", "attributeName", "Usage").waitFor();
 		assertEquals(4, rsp.size());
 		assertTrue(rsp.isMap());
@@ -128,6 +250,17 @@ public class JmxServiceTest extends TestCase {
 		assertTrue(rsp.asLong() > 0L);
 
 		// --- FIND OBJECTS ---
+		
+		try {
+
+			// Missing "query"
+			rsp = br.call(FND).waitFor();
+			fail();
+
+		} catch (MoleculerError e) {
+
+			// Ok!
+		}
 		
 		rsp = br.call(FND, "query", "java.lang:name=Metaspace,type=MemoryPool").waitFor();
 		array = rsp.get("objects");
@@ -147,6 +280,27 @@ public class JmxServiceTest extends TestCase {
 			assertTrue(test.get("ObjectName", "").contains("java.nio:"));
 		}
 
+		// Limit result size
+		rsp = br.call(FND, "query", "java", "max", 12).waitFor();
+		assertEquals(12, rsp.get("objects").size());
+
+		rsp = br.call(FND, "query", "object", "max", 7).waitFor();
+		assertEquals(7, rsp.get("objects").size());
+
+		rsp = br.call(FND, "query", "lang", "max", 3).waitFor();
+		assertEquals(3, rsp.get("objects").size());
+
+		// --- TEST WATCHER ---
+		
+		JmxListener l = (JmxListener) br.getLocalService("jmxListener");
+		LinkedList<Long> list = l.getList();
+		assertFalse(list.isEmpty());
+		for (Long v: list) {
+			assertTrue(v > 0);
+		}
+		
+		rsp = br.call(FND, "query", "memory").waitFor();
+		System.out.println(rsp);
 	}
 
 	// --- SET UP ---
@@ -154,8 +308,7 @@ public class JmxServiceTest extends TestCase {
 	@Override
 	protected void setUp() throws Exception {
 		br = ServiceBroker.builder().monitor(new ConstantMonitor()).build();
-		br.createService(new JmxService());
-		br.start();
+		br.createService(new JmxListener());
 	}
 
 	// --- TEAR DOWN ---
@@ -165,6 +318,10 @@ public class JmxServiceTest extends TestCase {
 		if (br != null) {
 			br.stop();
 			br = null;
+		}
+		if (svr != null) {
+			svr.stop();
+			svr = null;
 		}
 	}
 
