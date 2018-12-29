@@ -225,4 +225,68 @@ public class ObjectWatcher {
 		this.groups = groups == null ? null : groups.trim();
 	}
 
+	// --- COLLECTION HELPERS ---
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see java.lang.Object#hashCode()
+	 */
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((attributeName == null) ? 0 : attributeName.hashCode());
+		result = prime * result + (broadcast ? 1231 : 1237);
+		result = prime * result + ((event == null) ? 0 : event.hashCode());
+		result = prime * result + ((groups == null) ? 0 : groups.hashCode());
+		result = prime * result + ((objectName == null) ? 0 : objectName.hashCode());
+		result = prime * result + ((path == null) ? 0 : path.hashCode());
+		return result;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see java.lang.Object#equals(java.lang.Object)
+	 */
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ObjectWatcher other = (ObjectWatcher) obj;
+		if (attributeName == null) {
+			if (other.attributeName != null)
+				return false;
+		} else if (!attributeName.equals(other.attributeName))
+			return false;
+		if (broadcast != other.broadcast)
+			return false;
+		if (event == null) {
+			if (other.event != null)
+				return false;
+		} else if (!event.equals(other.event))
+			return false;
+		if (groups == null) {
+			if (other.groups != null)
+				return false;
+		} else if (!groups.equals(other.groups))
+			return false;
+		if (objectName == null) {
+			if (other.objectName != null)
+				return false;
+		} else if (!objectName.equals(other.objectName))
+			return false;
+		if (path == null) {
+			if (other.path != null)
+				return false;
+		} else if (!path.equals(other.path))
+			return false;
+		return true;
+	}
+
 }
