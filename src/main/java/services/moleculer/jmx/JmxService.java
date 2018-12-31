@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,6 +46,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.management.Attribute;
+import javax.management.AttributeList;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
@@ -58,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.datatree.Tree;
+import io.datatree.dom.Cache;
 import services.moleculer.ServiceBroker;
 import services.moleculer.config.ServiceBrokerConfig;
 import services.moleculer.context.Context;
@@ -178,6 +182,13 @@ public class JmxService extends Service {
 	 */
 	protected AtomicBoolean running = new AtomicBoolean();
 
+	// --- ATTRIBUTE CACHE ---
+
+	/**
+	 * Cached readable attribute names of MBeans.
+	 */
+	protected Cache<String, String[]> cache = new Cache<>(1024);
+
 	// --- ACTIONS ---
 
 	/**
@@ -234,6 +245,8 @@ public class JmxService extends Service {
 	 * 
 	 * <pre>
 	 * call jmx.getObject --objectName "java.lang:type=Runtime"
+	 * or
+	 * call jmx.getObject --objectName "java.lang:type=Runtime" --sort true
 	 * </pre>
 	 */
 	public Action getObject = (ctx) -> {
@@ -249,7 +262,12 @@ public class JmxService extends Service {
 		if (objectName == null || objectName.isEmpty()) {
 			throw new MoleculerServerError("The \"objectName\" property is required!", localNodeID, "NO_OBJECT_NAME");
 		}
-		return new CheckedTree(objectToJson(new ObjectName(objectName)));
+		
+		// Get sort property
+		boolean sort = ctx.params.get("sort", false);
+		
+		// Get object from JMX registry
+		return new CheckedTree(objectToJson(new ObjectName(objectName), sort));
 	};
 
 	/**
@@ -288,11 +306,14 @@ public class JmxService extends Service {
 					"NO_ATTRIBUTE_NAME");
 		}
 
+		// Get sort property
+		boolean sort = ctx.params.get("sort", false);
+
 		// Retrieve attribute's value
 		Object value = connection.getAttribute(new ObjectName(objectName), attributeName);
 
 		// Pick one property from a CompositeData (eg. "used")
-		Tree rsp = new CheckedTree(convertValue(value));
+		Tree rsp = new CheckedTree(convertValue(value, sort));
 		if (value != null) {
 
 			// The "path" parameter is optional!
@@ -316,7 +337,7 @@ public class JmxService extends Service {
 	 * <pre>
 	 * call jmx.findObjects --query memory --max 15
 	 * or
-	 * call jmx.findObjects --query "java.lang:*"
+	 * call jmx.findObjects --query "java.lang:*" --sort true
 	 * </pre>
 	 */
 	public Action findObjects = (ctx) -> {
@@ -344,13 +365,16 @@ public class JmxService extends Service {
 			objectNames = collectNames(query);
 		}
 
+		// Get sort property
+		boolean sort = ctx.params.get("sort", false);
+
 		// Convert response to Tree (~= JSON)
 		FastBuildTree rsp = new FastBuildTree(1);
 		LinkedList<Map<String, Object>> list = new LinkedList<>();
 		rsp.putUnsafe("objects", list);
 		for (ObjectName objectName : objectNames) {
 			try {
-				Map<String, Object> map = objectToJson(objectName);
+				Map<String, Object> map = objectToJson(objectName, sort);
 				if (map == null) {
 					continue;
 				}
@@ -475,7 +499,7 @@ public class JmxService extends Service {
 			if (watcher.attributeName == null || watcher.attributeName.isEmpty()) {
 
 				// Retrieve the entire MBean
-				value = objectToJson(objectName);
+				value = objectToJson(objectName, false);
 
 			} else {
 
@@ -485,7 +509,7 @@ public class JmxService extends Service {
 			}
 
 			// Pick one property from a CompositeData
-			Tree payload = new CheckedTree(convertValue(value));
+			Tree payload = new CheckedTree(convertValue(value, false));
 			if (value != null && watcher.path != null && !watcher.path.isEmpty()) {
 				payload = payload.get(watcher.path);
 			}
@@ -653,25 +677,42 @@ public class JmxService extends Service {
 	 * 
 	 * @param objectName
 	 *            input object
+	 * @param sort
+	 *            sort attribute names
 	 * 
 	 * @return output Map
 	 * 
 	 * @throws Exception
 	 *             any conversion exception
 	 */
-	protected Map<String, Object> objectToJson(ObjectName objectName) throws Exception {
-		MBeanAttributeInfo[] attrs = connection.getMBeanInfo(objectName).getAttributes();
-		LinkedHashMap<String, Object> map = new LinkedHashMap<>((attrs.length + 1) * 2);
-		for (MBeanAttributeInfo attr : attrs) {
-			if (!attr.isReadable()) {
-				continue;
+	protected Map<String, Object> objectToJson(ObjectName objectName, boolean sort) throws Exception {
+		String key = objectName.getCanonicalName();
+		if (sort) {
+			key += '>';
+		}
+		String[] names = cache.get(key);
+		if (names == null) {
+			MBeanAttributeInfo[] attrs = connection.getMBeanInfo(objectName).getAttributes();
+			ArrayList<String> list = new ArrayList<>(attrs.length);
+			for (MBeanAttributeInfo attr : attrs) {
+				if (!attr.isReadable()) {
+					continue;
+				}
+				list.add(attr.getName());
 			}
-			try {
-				Object value = connection.getAttribute(objectName, attr.getName());
-				map.put(attr.getName(), convertValue(value));
-			} catch (Exception unsupported) {
-				map.put(attr.getName(), null);
+			names = new String[list.size()];
+			list.toArray(names);
+			if (sort) {
+				Arrays.sort(names, String.CASE_INSENSITIVE_ORDER);
 			}
+			cache.put(key, names);
+		} else if (names.length == 0) {
+			return new LinkedHashMap<>();
+		}
+		AttributeList attrList = connection.getAttributes(objectName, names);
+		LinkedHashMap<String, Object> map = new LinkedHashMap<>((names.length + 1) * 2);
+		for (Attribute attr : attrList.asList()) {
+			map.put(attr.getName(), convertValue(attr.getValue(), sort));
 		}
 		map.put("ObjectName", objectName.getCanonicalName());
 		return map;
@@ -683,20 +724,27 @@ public class JmxService extends Service {
 	 * 
 	 * @param value
 	 *            input object
+	 * @param sort
+	 *            sort keys
 	 * 
 	 * @return output Map, List, Set, or a scalar value
 	 */
-	protected Object convertValue(Object value) {
+	protected Object convertValue(Object value, boolean sort) {
 		try {
 			if (value == null) {
 				return null;
 			}
 			if (value instanceof CompositeData) {
 				CompositeData data = (CompositeData) value;
-				Set<String> keys = data.getCompositeType().keySet();
+				Collection<String> keys = data.getCompositeType().keySet();
+				if (sort) {
+					ArrayList<String> copy = new ArrayList<>(keys);
+					Collections.sort(copy, String.CASE_INSENSITIVE_ORDER);
+					keys = copy;
+				}
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>(keys.size() + 1);
 				for (String key : keys) {
-					map.put(key, convertValue(data.get(key)));
+					map.put(key, convertValue(data.get(key), sort));
 				}
 				return map;
 			}
@@ -704,14 +752,14 @@ public class JmxService extends Service {
 				int len = Array.getLength(value);
 				ArrayList<Object> list = new ArrayList<>(len);
 				for (int i = 0; i < len; i++) {
-					list.add(convertValue(Array.get(value, i)));
+					list.add(convertValue(Array.get(value, i), sort));
 				}
 				return list;
 			}
 			if (value instanceof Collection) {
 				LinkedList<Object> list = new LinkedList<>();
 				for (Object val : (Collection<?>) value) {
-					list.add(convertValue(val));
+					list.add(convertValue(val, sort));
 				}
 				return list;
 			}
@@ -719,7 +767,7 @@ public class JmxService extends Service {
 				Map<?, ?> from = (Map<?, ?>) value;
 				LinkedHashMap<String, Object> map = new LinkedHashMap<>(from.size() * 2);
 				for (Map.Entry<?, ?> entry : from.entrySet()) {
-					map.put(String.valueOf(entry.getKey()), convertValue(entry.getValue()));
+					map.put(String.valueOf(entry.getKey()), convertValue(entry.getValue(), sort));
 				}
 				return map;
 			}
@@ -737,6 +785,9 @@ public class JmxService extends Service {
 				}
 				return num;
 			}
+			// if (value instanceof String) {
+			// return ((String) value).replace('\\', '/');
+			// }
 			return value;
 		} catch (Exception unsupported) {
 			return null;

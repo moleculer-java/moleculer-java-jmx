@@ -24,6 +24,16 @@ import services.moleculer.monitor.ConstantMonitor;
 
 public class JmxServiceTest extends TestCase {
 
+	public static final void main(String[] args) {
+		try {
+
+			ServiceBroker.builder().build().createService(new JmxService()).start().repl();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
 	// --- ACTIONS OF THE JMX SERVICE ---
 
 	private static final String LST = "jmx.listObjectNames";
@@ -32,15 +42,15 @@ public class JmxServiceTest extends TestCase {
 	private static final String FND = "jmx.findObjects";
 
 	private static final String URL = "service:jmx:rmi://localhost/jndi/rmi://localhost:1234/jmxrmi";
-	
+
 	// --- SERVICE BROKER ---
 
 	private ServiceBroker br;
 
 	// --- JMX SERVER ---
-	
+
 	private JMXConnectorServer svr;
-	
+
 	// --- TEST METHODS ---
 
 	@Test
@@ -52,14 +62,14 @@ public class JmxServiceTest extends TestCase {
 		br.start();
 		doTests();
 	}
-	
+
 	@Test
 	public void testRemote() throws Exception {
-	    LocateRegistry.createRegistry(1234);
-	    MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-	    JMXServiceURL url = new JMXServiceURL(URL);
-	    svr = JMXConnectorServerFactory.newJMXConnectorServer(url, null, mbs);
-	    svr.start();
+		LocateRegistry.createRegistry(1234);
+		MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+		JMXServiceURL url = new JMXServiceURL(URL);
+		svr = JMXConnectorServerFactory.newJMXConnectorServer(url, null, mbs);
+		svr.start();
 
 		JmxService jmx = new JmxService();
 		installWatcher(jmx);
@@ -71,14 +81,14 @@ public class JmxServiceTest extends TestCase {
 		br.start();
 		doTests();
 	}
-	
+
 	private void installWatcher(JmxService jmx) {
 		Map<String, Object> environment = new HashMap<>();
 		jmx.setEnvironment(environment);
 		assertEquals(environment, jmx.getEnvironment());
 		jmx.setEnvironment(null);
 		assertNull(jmx.getEnvironment());
-		
+
 		jmx.setUsername("a");
 		assertEquals("a", jmx.getUsername());
 		jmx.setUsername(null);
@@ -93,9 +103,9 @@ public class JmxServiceTest extends TestCase {
 		assertEquals(200, jmx.getWatchPeriod());
 		jmx.setWatchPeriod(300);
 		assertEquals(300, jmx.getWatchPeriod());
-		
+
 		ObjectWatcher watcher = new ObjectWatcher();
-		
+
 		try {
 
 			// Empty "objectName"
@@ -116,7 +126,7 @@ public class JmxServiceTest extends TestCase {
 
 			// Ok!
 		}
-		
+
 		// Nulls
 		watcher.setGroups(null);
 		assertNull(watcher.getGroups());
@@ -124,7 +134,7 @@ public class JmxServiceTest extends TestCase {
 		assertNull(watcher.getPath());
 		watcher.setAttributeName(null);
 		assertNull(watcher.getAttributeName());
-		
+
 		watcher.setObjectName("java.lang:type=Memory");
 		assertEquals("java.lang:type=Memory", watcher.getObjectName());
 		watcher.setAttributeName("HeapMemoryUsage");
@@ -139,19 +149,19 @@ public class JmxServiceTest extends TestCase {
 		assertFalse(watcher.isBroadcast());
 		watcher.setBroadcast(true);
 		assertTrue(watcher.isBroadcast());
-		
+
 		assertTrue(jmx.addObjectWatcher(watcher));
 		assertFalse(jmx.addObjectWatcher(watcher));
 		assertTrue(jmx.removeObjectWatcher(watcher));
 		assertFalse(jmx.removeObjectWatcher(watcher));
 		assertTrue(jmx.addObjectWatcher(watcher));
-		
+
 		Set<ObjectWatcher> watchers = jmx.getObjectWatchers();
 		assertEquals(1, watchers.size());
 		jmx.setObjectWatchers(watchers);
 		assertEquals(1, jmx.getObjectWatchers().size());
 	}
-		
+
 	public void doTests() throws Exception {
 
 		// --- LIST OBJECT NAMES ---
@@ -164,7 +174,7 @@ public class JmxServiceTest extends TestCase {
 		assertTrue(array.size() > 0);
 		assertEquals(array.size(), br.call(LST, "query", "*.*").waitFor().get("objectNames").size());
 		assertEquals(array.size(), br.call(LST, "query", "").waitFor().get("objectNames").size());
-		
+
 		rsp = br.call(LST, "query", "java.lang:*").waitFor();
 		array = rsp.get("objectNames");
 		assertTrue(array.size() > 0);
@@ -197,7 +207,7 @@ public class JmxServiceTest extends TestCase {
 		String txt2 = sortedArray.toString();
 		assertEquals(txt1, txt2);
 		assertNotSame(txt1, array.toString());
-		
+
 		rsp = br.call(LST, "query", "Code").waitFor();
 		array = rsp.get("objectNames");
 		assertTrue(array.size() > 0);
@@ -256,17 +266,17 @@ public class JmxServiceTest extends TestCase {
 			// Ok!
 		}
 
-	    // Get object
+		// Get object
 		rsp = br.call(OBJ, "objectName", "java.lang:name=Metaspace,type=MemoryPool").waitFor();
 		assertTrue(rsp.get("Usage.committed", 0L) > 0L);
 		assertTrue(rsp.size() > 10);
-		
+
 		rsp = br.call(OBJ, "objectName", "java.lang:type=OperatingSystem").waitFor();
 		assertTrue(rsp.get("AvailableProcessors", 0L) > 0L);
 		assertTrue(rsp.size() > 10);
-		
+
 		// --- GET ATTRIBUTE ---
-		
+
 		try {
 
 			// Missing "objectName"
@@ -288,7 +298,7 @@ public class JmxServiceTest extends TestCase {
 
 			// Ok!
 		}
-		
+
 		try {
 
 			// Missing "attributeName"
@@ -299,7 +309,7 @@ public class JmxServiceTest extends TestCase {
 
 			// Ok!
 		}
-		
+
 		try {
 
 			// Empty "attributeName"
@@ -311,18 +321,20 @@ public class JmxServiceTest extends TestCase {
 			// Ok!
 		}
 
-		rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool", "attributeName", "Usage").waitFor();
+		rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool", "attributeName", "Usage")
+				.waitFor();
 		assertEquals(4, rsp.size());
 		assertTrue(rsp.isMap());
 		assertTrue(rsp.get("committed", 0L) > 0L);
 
-		rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool", "attributeName", "Usage", "path", "committed").waitFor();
+		rsp = br.call(ATR, "objectName", "java.lang:name=Metaspace,type=MemoryPool", "attributeName", "Usage", "path",
+				"committed").waitFor();
 		assertEquals(1, rsp.size());
 		assertTrue(rsp.isPrimitive());
 		assertTrue(rsp.asLong() > 0L);
 
 		// --- FIND OBJECTS ---
-		
+
 		try {
 
 			// Missing "query"
@@ -333,7 +345,7 @@ public class JmxServiceTest extends TestCase {
 
 			// Ok!
 		}
-		
+
 		try {
 
 			// Empty "query"
@@ -344,19 +356,19 @@ public class JmxServiceTest extends TestCase {
 
 			// Ok!
 		}
-		
+
 		rsp = br.call(FND, "query", "java.lang:name=Metaspace,type=MemoryPool").waitFor();
 		array = rsp.get("objects");
 		assertEquals(1, array.size());
 		assertTrue(array.isEnumeration());
 		assertEquals("java.lang:name=Metaspace,type=MemoryPool", array.get("[0].ObjectName", ""));
-		
+
 		rsp = br.call(FND, "query", ".lang:name=").waitFor();
 		array = rsp.get("objects");
 		for (Tree test : array) {
 			assertTrue(test.toString(false).toLowerCase().contains(".lang:name="));
 		}
-		
+
 		rsp = br.call(FND, "query", "java.nio:*").waitFor();
 		array = rsp.get("objects");
 		for (Tree test : array) {
@@ -374,14 +386,14 @@ public class JmxServiceTest extends TestCase {
 		assertEquals(3, rsp.get("objects").size());
 
 		// --- TEST WATCHER ---
-		
+
 		JmxListener l = (JmxListener) br.getLocalService("jmxListener");
 		LinkedList<Long> list = l.getList();
 		assertFalse(list.isEmpty());
-		for (Long v: list) {
+		for (Long v : list) {
 			assertTrue(v > 0);
 		}
-		
+
 		try {
 
 			// Unable to modify
