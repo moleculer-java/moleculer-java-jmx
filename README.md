@@ -2,9 +2,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/627f31ac7df448b9a277c7dc4d5c3bc1)](https://www.codacy.com/app/berkesa/moleculer-java-jmx?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=moleculer-java/moleculer-java-jmx&amp;utm_campaign=Badge_Grade)
 [![codecov](https://codecov.io/gh/moleculer-java/moleculer-java-jmx/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java-jmx)
 
-# [WIP]
-
-JMX service for [Moleculer](https://github.com/berkesa/moleculer-java).
+# JMX Service for Moleculer
 
 The "jmx" Moleculer Service allows you to easily query the contents stored in a local or a remote JMX Registry. Through the service Java and NodeJS-based Moleculer nodes can easily query java-specific data (eg. JVM's memory usage, number of threads, or various statistical data - for example, JMX Service provides access to low-level statistics to Cassandra, Apache Kafka or Elasticsearch Servers).
 
