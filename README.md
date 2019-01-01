@@ -10,6 +10,80 @@ The "jmx" Moleculer Service allows you to easily query the contents stored in a 
 
 The other advantage of the JMXService is that it can monitor any MBean state, and then send an event about the changes. This events can be received by any node subscribed to the event, including NodeJS-based nodes.
 
+## Download
+
+**Maven**
+
+```xml
+<dependencies>
+	<dependency>
+		<groupId>com.github.berkesa</groupId>
+		<artifactId>moleculer-java-jmx</artifactId>
+		<version>1.0.1</version>
+		<scope>runtime</scope>
+	</dependency>
+</dependencies>
+```
+
+**Gradle**
+
+```gradle
+dependencies {
+	compile group: 'com.github.berkesa', name: 'moleculer-java-jmx', version: '1.0.1' 
+}
+```
+
+## Usage from code
+
+```java
+ServiceBroker().builder()
+               .build()
+               .createService(new JmxService())
+               .start();
+```
+
+## Usage with Spring Framework
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+	   http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+	   http://www.springframework.org/schema/context
+	   http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+
+	<!-- ENABLE ANNOTATION PROCESSING -->
+
+	<context:annotation-config />
+
+	<!-- INSTALL USER-DEFINED MOLECULER SERVICES -->
+	
+	<context:component-scan base-package="my.services" />
+
+	<!-- INSTALL JMX SERVICE -->
+
+	<bean id="jmx" class="services.moleculer.jmx.JmxService" />
+
+	<!-- SPRING REGISTRATOR FOR MOLECULER SERVICES -->
+
+	<bean id="registrator" class="services.moleculer.config.SpringRegistrator" depends-on="broker" />
+
+	<!-- SERVICE BROKER INSTANCE -->
+
+	<bean id="broker" class="services.moleculer.ServiceBroker" init-method="start" destroy-method="stop">
+		<constructor-arg ref="brokerConfig" />
+	</bean>
+
+	<!-- SERVICE BROKER SETTINGS -->
+
+	<bean id="brokerConfig" class="services.moleculer.config.ServiceBrokerConfig">
+		<property name="nodeID" value="node-1" />
+	</bean>
+
+</beans>
+```
+
 # License
 
 moleculer-java-jmx is available under the [MIT license](https://tldrlegal.com/license/mit-license).
