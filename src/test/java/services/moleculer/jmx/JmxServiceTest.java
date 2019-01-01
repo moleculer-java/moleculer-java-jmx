@@ -24,16 +24,6 @@ import services.moleculer.monitor.ConstantMonitor;
 
 public class JmxServiceTest extends TestCase {
 
-	public static final void main(String[] args) {
-		try {
-
-			ServiceBroker.builder().build().createService(new JmxService()).start().repl();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
 	// --- ACTIONS OF THE JMX SERVICE ---
 
 	private static final String LST = "jmx.listObjectNames";

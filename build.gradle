@@ -17,6 +17,7 @@ buildscript {
 // --- JAVADOC ---
 
 javadoc {
+	options.encoding = 'UTF-8'
 	failOnError = true
 }
 
@@ -76,14 +77,54 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
 	compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
 
-	// --- DEPENDENCY OF THE REDIS TRANSPORTER ---
-	
-	// https://mvnrepository.com/artifact/biz.paluch.redis/lettuce
-	compile group: 'biz.paluch.redis', name: 'lettuce', version: '4.5.0.Final'
+}
 
-	// Moleculer developer console (optional)
-    compile group: 'com.github.berkesa', name: 'moleculer-java-repl', version: '1.0.4'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
+group = 'com.github.berkesa'
+
+version = '1.0.1'
+
+modifyPom {
+    project {
+        artifactId 'moleculer-java-jmx'
+        name 'Moleculer JMX Service'
+        description 'JMX service for Moleculer Framework.'
+        url 'https://moleculer-java.github.io/moleculer-java-jmx/'
+        inceptionYear '2019'
+
+        scm {
+            url 'https://moleculer-java.github.io/moleculer-java-jmx/'
+            connection 'scm:https://github.com/moleculer-java/moleculer-java-jmx.git'
+            developerConnection 'scm:git://github.com/moleculer-java/moleculer-java-jmx.git'
+        }
+
+        licenses {
+            license {
+                name "The MIT License"
+                url "http://www.opensource.org/licenses/MIT"
+                distribution 'repo'
+            }
+        }
+        
+        dependencies {
+            dependency {
+                groupId 'com.github.berkesa'
+                artifactId 'moleculer-java'
+                version '1.0.8'
+                scope 'runtime'
+            }
+        }
+
+        developers {
+            developer {
+                id 'berkesa'
+                name 'Andras Berkes'
+                email 'andras.berkes@programmer.net'
+            }
+        }
+    }
 }
 
 nexus {
@@ -100,4 +141,11 @@ compileJava {
 		executable = 'java'
 		jvmArgs = ['-classpath', project.configurations.ecj.asPath, 'org.eclipse.jdt.internal.compiler.batch.Main', '-nowarn']
 	}
+}
+
+// --- JAR ---
+
+jar {
+    baseName = 'moleculer-jmx'
+    version =  '1.0.1'
 }
