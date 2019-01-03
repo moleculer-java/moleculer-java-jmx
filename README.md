@@ -212,7 +212,7 @@ broker.call("jmx.findObjects",
 
 # Sample project
 
-* [Moleculer Java demo project with Gradle](https://github.com/moleculer-java/moleculer-java-gradle-demo/)
+* [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-java-gradle-demo/)
 
 # License
 
