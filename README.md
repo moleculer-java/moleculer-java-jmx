@@ -147,7 +147,7 @@ broker.call("jmx.getObject",
 Invoke from REPL console:
 
 ```bash
-mol $ call jmx.getAttribute --objectName java.lang:type=Memory
+mol $ call jmx.getAttribute --objectName java.lang:type=Threading
                             --attributeName AllThreadIds
 ```
 
@@ -156,7 +156,7 @@ Invoke from Java code:
 ```java
 broker.call("jmx.getAttribute",
             "objectName",
-            "java.lang:type=Memory",
+            "java.lang:type=Threading",
             "attributeName",
             "AllThreadIds").then(rsp -> {
   for (Tree item: rsp) {
