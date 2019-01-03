@@ -154,7 +154,7 @@ mol $ call jmx.getAttribute --objectName java.lang:type=Memory
 Invoke from Java code:
 
 ```java
-broker.call("jmx.getObject",
+broker.call("jmx.getAttribute",
             "objectName",
             "java.lang:type=Memory",
             "attributeName",
@@ -189,7 +189,8 @@ mol $ call jmx.findObjects --query cputime
 Invoke from Java code:
 
 ```java
-broker.call("query",
+broker.call("jmx.findObjects",
+            "query",
             "cputime").then(rsp -> {
   for (Tree item: rsp.get("objects")) {
     logger.info("Object name: " + item.get("ObjectName", "unknown"));
