@@ -82,6 +82,84 @@ ServiceBroker().builder()
 </beans>
 ```
 
+## JMX Commands
+
+### List object (MBean) names
+
+```bash
+mol $ call jmx.listObjectNames --query memory
+```
+
+**Options**
+
+```
+    --query optional query string (eg. "memory" or "java.lang:*")
+    --sort  sort list to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/listObjectNames.png)
+
+### Get object (entire MBean)
+
+```bash
+mol $ call jmx.getObject --objectName "java.lang:type=Memory"
+```
+
+**Options**
+
+```
+    --objectName name of the MBean (eg. "java.lang:type=Memory")
+    --sort       sort attributes to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/getObject.png)
+
+### Get attribute
+
+```bash
+mol $ call jmx.getObject --objectName java.lang:type=Memory
+                         --attributeName AllThreadIds
+```
+
+**Options**
+
+```
+    --objectName    name of the MBean (eg. "java.lang:type=Runtime")
+    --attributeName attribute name (eg. "HeapMemoryUsage")
+    --path          one property of the composite attribute (eg. "used")
+    --sort          sort properties to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/getAttribute.png)
+
+### Find objects by a query string
+
+```bash
+mol $ call jmx.findObjects --query cputime
+```
+
+**Options**
+
+```
+    --query query String (eg. "cputime" or "java.lang:*")
+    --max   max number of retrieved objects (default is 64)
+    --sort  sort attributes to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/findObjects.png)
+
+# Sample project
+
+* [Moleculer Java demo project with Gradle](https://github.com/moleculer-java/moleculer-java-gradle-demo/)
+
 # License
 
 moleculer-java-jmx is available under the [MIT license](https://tldrlegal.com/license/mit-license).
