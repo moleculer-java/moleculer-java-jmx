@@ -90,6 +90,16 @@ ServiceBroker().builder()
 mol $ call jmx.listObjectNames --query memory
 ```
 
+Invoke from Java code:
+
+```java
+broker.call("jmx.listObjectNames").then(rsp -> {
+  for (Tree item: rsp.get("objectNames")) {
+    String objectName = item.asString();
+  }
+});
+```
+
 **Options**
 
 ```
@@ -121,8 +131,8 @@ mol $ call jmx.getObject --objectName "java.lang:type=Memory"
 ### Get attribute
 
 ```bash
-mol $ call jmx.getObject --objectName java.lang:type=Memory
-                         --attributeName AllThreadIds
+mol $ call jmx.getAttribute --objectName java.lang:type=Memory
+                            --attributeName AllThreadIds
 ```
 
 **Options**
