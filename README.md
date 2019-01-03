@@ -86,6 +86,8 @@ ServiceBroker().builder()
 
 ### List object (MBean) names
 
+Invoke from REPL console:
+
 ```bash
 mol $ call jmx.listObjectNames --query memory
 ```
@@ -113,8 +115,20 @@ broker.call("jmx.listObjectNames").then(rsp -> {
 
 ### Get object (entire MBean)
 
+Invoke from REPL console:
+
 ```bash
 mol $ call jmx.getObject --objectName "java.lang:type=Memory"
+```
+
+Invoke from Java code:
+
+```java
+broker.call("jmx.getObject",
+            "objectName",
+            "java.lang:type=Memory").then(rsp -> {
+  logger.info("Usage: " + rsp.get("HeapMemoryUsage.used", 0L));
+});
 ```
 
 **Options**
@@ -130,9 +144,25 @@ mol $ call jmx.getObject --objectName "java.lang:type=Memory"
 
 ### Get attribute
 
+Invoke from REPL console:
+
 ```bash
 mol $ call jmx.getAttribute --objectName java.lang:type=Memory
                             --attributeName AllThreadIds
+```
+
+Invoke from Java code:
+
+```java
+broker.call("jmx.getObject",
+            "objectName",
+            "java.lang:type=Memory",
+            "attributeName",
+            "AllThreadIds").then(rsp -> {
+  for (Tree item: rsp) {
+    logger.info("Thread ID: " + item.asLong());
+  }
+});
 ```
 
 **Options**
@@ -150,8 +180,21 @@ mol $ call jmx.getAttribute --objectName java.lang:type=Memory
 
 ### Find objects by a query string
 
+Invoke from REPL console:
+
 ```bash
 mol $ call jmx.findObjects --query cputime
+```
+
+Invoke from Java code:
+
+```java
+broker.call("query",
+            "cputime").then(rsp -> {
+  for (Tree item: rsp.get("objects")) {
+    logger.info("Object name: " + item.get("ObjectName", "unknown"));
+  }
+});
 ```
 
 **Options**
