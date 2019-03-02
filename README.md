@@ -4,9 +4,9 @@
 
 # JMX Service for Moleculer
 
-The "jmx" Moleculer Service allows you to easily query the contents stored in a local or a remote JMX Registry. Through the service Java and NodeJS-based Moleculer nodes can easily query java-specific data (eg. JVM's memory usage, number of threads, or various statistical data - for example, JMX Service provides access to low-level statistics to Cassandra, Apache Kafka or Elasticsearch Servers).
+The "jmx" Moleculer Service allows you to easily query the contents stored in a local or a remote JMX Registry. With this service Java and Node.js-based Moleculer nodes can easily query java-specific data (eg. JVM's memory usage, number of threads, or various statistical data - for example, JMX Service provides access to low-level statistics to Cassandra, Apache Kafka or Elasticsearch Servers).
 
-The other advantage of the JMXService is that it can monitor any MBean state, and then send an event about the changes. This events can be received by any node subscribed to the event, including NodeJS-based nodes.
+The other advantage of the JMXService is that it can monitor objects in the JMX registry, and sends events about the changes. This events can be received by any node subscribed to this event, including Node.js-based nodes.
 
 ## Download
 
@@ -81,6 +81,138 @@ ServiceBroker().builder()
 
 </beans>
 ```
+
+## JMX Commands
+
+### List object (MBean) names
+
+Invoke from REPL console:
+
+```bash
+mol $ call jmx.listObjectNames --query memory
+```
+
+Invoke from Java code:
+
+```java
+broker.call("jmx.listObjectNames").then(rsp -> {
+  for (Tree item: rsp.get("objectNames")) {
+    String objectName = item.asString();
+  }
+});
+```
+
+**Options**
+
+```
+    --query optional query string (eg. "memory" or "java.lang:*")
+    --sort  sort list to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/listObjectNames.png)
+
+### Get object (entire MBean)
+
+Invoke from REPL console:
+
+```bash
+mol $ call jmx.getObject --objectName "java.lang:type=Memory"
+```
+
+Invoke from Java code:
+
+```java
+broker.call("jmx.getObject",
+            "objectName",
+            "java.lang:type=Memory").then(rsp -> {
+  logger.info("Usage: " + rsp.get("HeapMemoryUsage.used", 0L));
+});
+```
+
+**Options**
+
+```
+    --objectName name of the MBean (eg. "java.lang:type=Memory")
+    --sort       sort attributes to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/getObject.png)
+
+### Get attribute
+
+Invoke from REPL console:
+
+```bash
+mol $ call jmx.getAttribute --objectName java.lang:type=Threading
+                            --attributeName AllThreadIds
+```
+
+Invoke from Java code:
+
+```java
+broker.call("jmx.getAttribute",
+            "objectName",
+            "java.lang:type=Threading",
+            "attributeName",
+            "AllThreadIds").then(rsp -> {
+  for (Tree item: rsp) {
+    logger.info("Thread ID: " + item.asLong());
+  }
+});
+```
+
+**Options**
+
+```
+    --objectName    name of the MBean (eg. "java.lang:type=Runtime")
+    --attributeName attribute name (eg. "HeapMemoryUsage")
+    --path          one property of the composite attribute (eg. "used")
+    --sort          sort properties to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/getAttribute.png)
+
+### Find objects by a query string
+
+Invoke from REPL console:
+
+```bash
+mol $ call jmx.findObjects --query cputime
+```
+
+Invoke from Java code:
+
+```java
+broker.call("jmx.findObjects",
+            "query",
+            "cputime").then(rsp -> {
+  for (Tree item: rsp.get("objects")) {
+    logger.info("Object name: " + item.get("ObjectName", "unknown"));
+  }
+});
+```
+
+**Options**
+
+```
+    --query query String (eg. "cputime" or "java.lang:*")
+    --max   max number of retrieved objects (default is 64)
+    --sort  sort attributes to alphanumeric order    
+```
+
+**Output**
+
+![image](docs/findObjects.png)
+
+# Sample project
+
+* [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-java-gradle-demo/)
 
 # License
 
