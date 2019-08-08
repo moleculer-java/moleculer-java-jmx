@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -459,7 +460,12 @@ public class JmxService extends Service {
 				}
 			}
 			if (running.get() && !objectWatchers.isEmpty()) {
-				timer = scheduler.schedule(this::watchObjects, watchPeriod, TimeUnit.MILLISECONDS);
+				try {
+					timer = scheduler.schedule(this::watchObjects, watchPeriod, TimeUnit.MILLISECONDS);					
+				} catch (RejectedExecutionException interrupted) {
+					
+					// Server is stopping
+				}
 			}
 		});
 	}
@@ -604,7 +610,12 @@ public class JmxService extends Service {
 			ServiceBrokerConfig config = broker.getConfig();
 			scheduler = config.getScheduler();
 			executor = config.getExecutor();
-			timer = scheduler.schedule(this::watchObjects, watchPeriod, TimeUnit.MILLISECONDS);
+			try {
+				timer = scheduler.schedule(this::watchObjects, watchPeriod, TimeUnit.MILLISECONDS);					
+			} catch (RejectedExecutionException interrupted) {
+				
+				// Server is stopping
+			}
 		}
 	}
 
