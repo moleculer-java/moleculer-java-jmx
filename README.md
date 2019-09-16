@@ -214,7 +214,7 @@ broker.call("jmx.findObjects",
 
 # Sample project
 
-* [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-java-gradle-demo/)
+* [Moleculer Java demo project with Gradle](https://moleculer-java.github.io/moleculer-spring-boot-demo/)
 
 # License
 
