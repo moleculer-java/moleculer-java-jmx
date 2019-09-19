@@ -189,7 +189,7 @@ public class JmxService extends Service {
 	 * Cached readable attribute names of MBeans.
 	 */
 	protected Cache<String, String[]> cache = new Cache<>(1024);
-
+	
 	// --- ACTIONS ---
 
 	/**
@@ -796,10 +796,10 @@ public class JmxService extends Service {
 				}
 				return num;
 			}
-			// if (value instanceof String) {
-			// return ((String) value).replace('\\', '/');
-			// }
-			return value;
+			if (value instanceof Number || value instanceof Boolean || value instanceof String) {
+				return value;
+			}
+			return value.toString();
 		} catch (Exception unsupported) {
 			return null;
 		}

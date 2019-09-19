@@ -19,7 +19,7 @@ The other advantage of the JMXService is that it can monitor objects in the JMX 
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java-jmx</artifactId>
-		<version>1.0.2</version>
+		<version>1.0.3</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -29,7 +29,7 @@ The other advantage of the JMXService is that it can monitor objects in the JMX 
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java-jmx', version: '1.0.2' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java-jmx', version: '1.0.3' 
 }
 ```
 
