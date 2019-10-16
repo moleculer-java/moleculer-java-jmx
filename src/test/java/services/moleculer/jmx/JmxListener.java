@@ -38,9 +38,9 @@ public class JmxListener extends Service {
 	
 	@Group("jmx")
 	@Subscribe("jmx.memory")
-	public Listener setCounter = data -> {
+	public Listener setCounter = ctx -> {
 		synchronized(received) {
-			received.addLast(data.asLong());
+			received.addLast(ctx.params.asLong());
 		}
 	};
 	

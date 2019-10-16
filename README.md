@@ -6,9 +6,13 @@
 
 The "jmx"
 [Moleculer](https://moleculer-java.github.io/moleculer-java/)
-Service allows you to easily query the contents stored in a local or a remote JMX Registry. With this service Java and Node.js-based Moleculer nodes can easily query java-specific data (eg. JVM's memory usage, number of threads, or various statistical data - for example, JMX Service provides access to low-level statistics to Cassandra, Apache Kafka or Elasticsearch Servers).
+Service allows you to easily query the contents stored in a local or a remote JMX Registry.
+With this service Java and Node.js-based Moleculer nodes can easily query java-specific data
+(eg. JVM's memory usage, number of threads, or various statistical data - for example,
+JMX Service provides access to low-level statistics to Cassandra, Apache Kafka or Elasticsearch Servers).
 
-The other advantage of the JMXService is that it can monitor objects in the JMX registry, and sends events about the changes. This events can be received by any node subscribed to this event, including Node.js-based nodes.
+The other advantage of the JMXService is that it can monitor objects in the JMX registry, and sends events about the changes.
+This events can be received by any node subscribed to this event, including Node.js-based nodes.
 
 ## Download
 
@@ -19,7 +23,7 @@ The other advantage of the JMXService is that it can monitor objects in the JMX 
 	<dependency>
 		<groupId>com.github.berkesa</groupId>
 		<artifactId>moleculer-java-jmx</artifactId>
-		<version>1.0.3</version>
+		<version>1.2.0</version>
 		<scope>runtime</scope>
 	</dependency>
 </dependencies>
@@ -29,7 +33,7 @@ The other advantage of the JMXService is that it can monitor objects in the JMX 
 
 ```gradle
 dependencies {
-	compile group: 'com.github.berkesa', name: 'moleculer-java-jmx', version: '1.0.3' 
+	compile group: 'com.github.berkesa', name: 'moleculer-java-jmx', version: '1.2.0' 
 }
 ```
 
