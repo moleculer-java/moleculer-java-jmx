@@ -394,7 +394,7 @@ public class JmxService extends Service {
 						break;
 					}
 				}
-			} catch (Exception unsupported) {
+			} catch (Throwable unsupported) {
 				continue;
 			}
 		}

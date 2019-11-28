@@ -61,7 +61,7 @@ dependencies {
     // =============== MOLECULER ===============
 
 	// Moleculer core
-	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.0'
+	compile group: 'com.github.berkesa', name: 'moleculer-java', version: '1.2.4'
 	   
     // =============== LOGGING ===============
 	
@@ -84,8 +84,8 @@ targetCompatibility = 1.8
 
 group = 'com.github.berkesa'
 
-// version = '1.2.0-SNAPSHOT'
-version = '1.2.0'
+// version = '1.2.1-SNAPSHOT'
+version = '1.2.1'
 
 modifyPom {
     project {
@@ -113,7 +113,7 @@ modifyPom {
             dependency {
                 groupId 'com.github.berkesa'
                 artifactId 'moleculer-java'
-                version '1.2.0'
+                version '1.2.4'
                 scope 'runtime'
             }
         }
@@ -148,5 +148,5 @@ compileJava {
 
 jar {
     baseName = 'moleculer-jmx'
-    version =  '1.2.0'
+    version =  '1.2.1'
 }
