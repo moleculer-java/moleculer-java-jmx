@@ -39,15 +39,24 @@ import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
 
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import io.datatree.Tree;
-import junit.framework.TestCase;
 import services.moleculer.ServiceBroker;
 import services.moleculer.error.MoleculerError;
 import services.moleculer.monitor.ConstantMonitor;
 
-public class JmxServiceTest extends TestCase {
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+
+public class JmxServiceTest {
 
 	// --- ACTIONS OF THE JMX SERVICE ---
 
@@ -425,7 +434,7 @@ public class JmxServiceTest extends TestCase {
 
 	// --- SET UP ---
 
-	@Override
+	@BeforeEach
 	protected void setUp() throws Exception {
 		br = ServiceBroker.builder().monitor(new ConstantMonitor()).build();
 		br.createService(new JmxListener());
@@ -433,7 +442,7 @@ public class JmxServiceTest extends TestCase {
 
 	// --- TEAR DOWN ---
 
-	@Override
+	@AfterEach
 	protected void tearDown() throws Exception {
 		if (br != null) {
 			br.stop();
