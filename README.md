@@ -1,5 +1,3 @@
-[![codecov](https://codecov.io/gh/moleculer-java/moleculer-java-jmx/branch/master/graph/badge.svg)](https://codecov.io/gh/moleculer-java/moleculer-java-jmx)
-
 ## JMX Service for Moleculer
 
 The "jmx" Moleculer Service allows you to easily query the contents stored in a local or a remote JMX Registry.
