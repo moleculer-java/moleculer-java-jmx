@@ -16,7 +16,7 @@ this is a library meant to be added to a `ServiceBroker` by the host application
 
 Uses **Maven** (`pom.xml`). The CI target is `mvn clean verify`.
 
-- `mvn clean install` — compile, test, assemble the jar (`target/moleculer-java-jmx-2.0.0-SNAPSHOT.jar`) and install to the local `~/.m2` repository
+- `mvn clean install` — compile, test, assemble the jar (`target/moleculer-java-jmx-2.0.0.jar`) and install to the local `~/.m2` repository
 - `mvn clean verify` — full build with tests (definition of done)
 - `mvn test` — run all JUnit 5 tests
 - `mvn test -Dtest=JmxServiceTest#testLocal` — run a single test method
