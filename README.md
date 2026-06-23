@@ -40,7 +40,7 @@ The same `jmx.*` actions are callable remotely from any other node in the cluste
 
 ## Requirements
 
-Java 21 or newer.
+Java 17 or newer.
 
 ## License
 

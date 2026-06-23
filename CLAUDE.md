@@ -23,8 +23,9 @@ Uses **Maven** (`pom.xml`). The CI target is `mvn clean verify`.
 - `mvn javadoc:javadoc` — build Javadoc (release profile uses `<doclint>none</doclint>`)
 - `mvn -Prelease ...` — activate the release profile (sources + javadoc + GPG sign + Central Portal publishing)
 
-Targets **Java 21** (`maven.compiler.release = 21`) and compiles with **javac** via `maven-compiler-plugin`.
-Tests run on **JUnit 5 (Jupiter)**.
+Targets **Java 17** (`maven.compiler.release = 17`), build JDK 17+ (JDK 25 in use), minimum consumer
+runtime **JDK 17** (Spring 6 transitive via moleculer-java). Compiles with **javac** via
+`maven-compiler-plugin`. Tests run on **JUnit 5 (Jupiter)**.
 
 ## Architecture
 
