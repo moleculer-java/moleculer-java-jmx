@@ -16,7 +16,7 @@ this is a library meant to be added to a `ServiceBroker` by the host application
 
 Uses **Maven** (`pom.xml`). The CI target is `mvn clean verify`.
 
-- `mvn clean install` — compile, test, assemble the jar (`target/moleculer-java-jmx-2.0.0.jar`) and install to the local `~/.m2` repository
+- `mvn clean install` — compile, test, assemble the jar (`target/moleculer-java-jmx-2.1.0.jar`) and install to the local `~/.m2` repository
 - `mvn clean verify` — full build with tests (definition of done)
 - `mvn test` — run all JUnit 5 tests
 - `mvn test -Dtest=JmxServiceTest#testLocal` — run a single test method
@@ -74,5 +74,5 @@ Three source classes, plus two test-only helpers:
 - Fields and helper methods are `protected` (not `private`) so the service can be subclassed and extended;
   prefer `protected` for new internals.
 - Version lives in two places in `pom.xml`: the project `<version>` and the `moleculer-java`
-  dependency `<version>` (currently the `${moleculer.version}` property). Both are `2.0.0`
+  dependency `<version>` (currently the `${moleculer.version}` property). Both are `2.1.0`
   (lockstep across the workspace) — update consistently when releasing.
